@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gospel Assistant</title>
+  <meta name="theme-color" content="#0d47a1"/>
+  <link rel="manifest" href="application/manifest+json,{%22name%22:%22Gospel%20Assistant%22,%22short_name%22:%22Gospel%20Assistant%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%230d47a1%22,%22icons%22:[{%22src%22:%22image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='50'%20cy='50'%20r='40'%20fill='%230d47a1'/%3E%3C/svg%3E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}"/>
+  <style>
+    body { font-family: sans-serif; padding: 16px; max-width: 800px; margin: auto; background: #fff; color: #000; }
+    label { display: block; margin-top: 16px; font-weight: bold; }
+    input, select, textarea { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { margin-top: 20px; padding: 12px; background: #0d47a1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #1565c0; }
+    #status { margin-top: 16px; color: #d32f2f; }
+    #output { margin-top: 24px; padding: 16px; background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; white-space: pre-wrap; line-height: 1.5; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>🪦 Gospel Assistant (LDS)</h2>
+  <p>Creates doctrinally sound talks & lessons using Qwen AI.</p>
+
+  <label for="apiKey">OpenRouter API Key:</label>
+  <input type="password" id="apiKey" placeholder="Paste your OpenRouter key here" />
+
+  <label for="audience">Audience:</label>
+  <select id="audience">
+    <option value="children">Children (4–8)</option>
+    <option value="youth">Youth (13–18)</option>
+    <option value="saya">SA/YSA (19+)</option>
+    <option value="adults">Adults (married)</option>
+  </select>
+
+  <label for="mode">Mode:</label>
+  <select id="mode">
+    <option value="talk">Talk Mode (Devotional)</option>
+    <option value="lesson">Lesson Mode (Teaching)</option>
+  </select>
+
+  <label for="topic">Gospel Topic:</label>
+  <input type="text" id="topic" placeholder="e.g., Faith, Repentance, Prayer" />
+
+  <label for="notes">Optional Notes (quotes, personal thoughts):</label>
+  <textarea id="notes" rows="4" placeholder="Paste notes or leave blank"></textarea>
+
+  <button onclick="generate()">✨ Generate Message</button>
+
+  <div id="status" class="hidden">Sending request… Please wait.</div>
+  <div id="output"></div>
+
+  <script>
+    const SYSTEM_PROMPT = `You are a faithful member of The Church of Jesus Christ of Latter-day Saints, knowledgeable in the scriptures and teachings of latter-day prophets. Your task is to help prepare a gospel message that is doctrinally sound, uplifting, and tailored to a specific audience.
+
+When given a topic and audience, always include:
+1. A clear doctrinal explanation of the topic.
+2. Logical reasoning that connects truth to daily life.
+3. A relatable analogy or real-life example.
+4. At least one scripture (preferably from the Book of Mormon or words of living prophets).
+5. A clear connection to the Atonement of Jesus Christ.
+6. A brief, sincere testimony of the truth.
+
+Audience types:
+- Children (4–8): simple words, short sentences, concrete examples (e.g., sharing toys = kindness).
+- Youth (13–18): relatable challenges (peer pressure, identity), deeper doctrine, scripture study emphasis.
+- SA/YSA (19+, unmarried): focus on personal revelation, discipleship, dating worthiness, building habits.
+- Adults (married): family, covenants, enduring trials, ministering.
+
+If in "Talk Mode," structure like a devotional (introduction, body, conclusion with testimony).
+If in "Lesson Mode," include discussion questions and a simple teaching outline.
+
+Never speculate, never use non-Church sources as authority, and never contradict official Church doctrine.`;
+
+    async function generate() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const audience = document.getElementById('audience').value;
+      const mode = document.getElementById('mode').value;
+      const topic = document.getElementById('topic').value.trim();
+      const notes = document.getElementById('notes').value.trim();
+
+      if (!apiKey) {
+        alert('⚠️ Please enter your OpenRouter API key.');
+        return;
+      }
+      if (!topic) {
+        alert('⚠️ Please enter a gospel topic.');
+        return;
+      }
+
+      const outputDiv = document.getElementById('output');
+      const statusDiv = document.getElementById('status');
+      statusDiv.classList.remove('hidden');
+      outputDiv.innerText = '';
+
+      const userMessage = `Audience: ${audience}\nMode: ${mode}\nTopic: ${topic}` +
+        (notes ? `\nNotes: ${notes}` : '');
+
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://your-username.github.io',
+            'X-Title': 'GospelAssistant'
+          },
+          body: JSON.stringify({
+            model: "qwen/qwen-30b-a3b",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: userMessage }
+            ]
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'API request failed');
+        }
+
+        const reply = data.choices[0]?.message?.content || 'No response received.';
+        outputDiv.innerText = reply;
+      } catch (err) {
+        outputDiv.innerText = '❌ Error: ' + err.message + '\n\nMake sure your API key is correct and you have free quota on OpenRouter.';
+      } finally {
+        statusDiv.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
